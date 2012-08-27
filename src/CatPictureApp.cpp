@@ -1,3 +1,5 @@
+
+
 #include "cinder/app/AppBasic.h"
 #include "cinder/gl/gl.h"
 
@@ -12,12 +14,16 @@ class CatPictureApp : public AppBasic {
 	void update();
 	void draw();
 private:
-	float brightness;
+	float redColor;
+	float greenColor;
+	float blueColor;
 };
 
 void CatPictureApp::setup()
 {
-	brightness = 1.0f;
+	redColor = 0.0f;
+	greenColor = 0.0f;
+	blueColor = 0.0f;
 }
 
 void CatPictureApp::mouseDown( MouseEvent event )
@@ -26,16 +32,30 @@ void CatPictureApp::mouseDown( MouseEvent event )
 
 void CatPictureApp::update()
 {
-	brightness = brightness - 0.01f;
-	if(brightness < 0.0f){
-		brightness = 1.0f;
+	/// Increments colors at varying rates to produce a wide range of colors
+	redColor = redColor + .005f;
+	greenColor = greenColor + .01f;
+	blueColor = blueColor + .015f;
+	
+	///Following three if statements prevent the colors from going out of range
+	if(redColor > 1.0){
+		redColor = 0.0f;
 	}
+
+	if(greenColor > 1.0){
+		greenColor = 0.0f;
+	}
+
+	if(blueColor > 1.0){
+		blueColor = 0.0f;
+	}
+
 }
 
 void CatPictureApp::draw()
 {
-	// clear out the window with black
-	gl::clear( Color( brightness, brightness, brightness ) ); 
+	/// Resets screen color to various mixtures of red/green/blue
+	gl::clear( Color( redColor, greenColor, blueColor ) ); 
 }
 
 CINDER_APP_BASIC( CatPictureApp, RendererGl )
