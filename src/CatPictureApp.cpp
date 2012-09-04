@@ -419,7 +419,13 @@ void CatPictureApp::update()
 	addLine(540, 380, 540, 420, Color8u(0,0,0));
 	//roof
 	addTriangle(480,360,600,320,720,360, Color8u(0,0,0));
-	
+	//clouds
+	addCircle(dataArray, 20, 40, 40, Color8u(255,255,255), true);
+	addCircle(dataArray, 30, 50, 60, Color8u(255,255,255), true);
+	addCircle(dataArray, 25, 500, 100, Color8u(255,255,255), true);
+	addCircle(dataArray, 40, 550, 75, Color8u(255,255,255), true);
+
+
 	blur(dataArray);
 
 	//write image to a file
