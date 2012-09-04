@@ -1,4 +1,12 @@
-
+/**
+ *author: Jason Brammer
+ *date: 2012-09-04
+ *
+ *The code for creating a line was derived from http://www.codekeep.net/snippets/e39b2d9e-0843-4405-8e31-44e212ca1c45.aspx
+ *The setPixel(x,y) function was modified to accept a color as well
+ *
+ *This project satisfies goals A.1 (rectangle), A.2 (circle), A.3 (line), A.7 (triangle), B.1 (blur), E.5 (animation)
+ */
 
 #include "cinder/app/AppBasic.h"
 #include "cinder/gl/gl.h"
@@ -19,20 +27,74 @@ class CatPictureApp : public AppBasic {
 	void prepareSettings(Settings* settings);
 
   private:
-	Surface* mySurface;
+	Surface* mySurface; //mySurface is the surface object whose pixel array is modified to create a drawing
 
+	//Width and height of shown screen
 	static const int AppWidth = 800;
 	static const int AppHeight = 600;
+	//full texture size that is allocated to memory must be a square and a power of 2
 	static const int TextureSize = 1024;
+
+	//track frames shown for wheel animation
 	int frameNumber;
 
-	void setDefaultColor();
-	void addRectangle(uint8_t* dataArray, int rectHeight, int rectLength, int centerX, int centerY, Color8u c, bool fill);
+	/**
+	 *Add a rectangle to the surface (A.1)
+	 *@dataArray array of pixels the rectangle is to be added to
+	 *@rectHeight height of the rectangle
+	 *@rectLength length of the rectangle
+	 *@startX top left corner x coordinate
+	 *@startY top left corner y coordinate
+	 *@c the color to draw the rectangle pixels in
+	 *@fill (true)fill the rectangle, (false)only draw perimeter
+	 */
+	void addRectangle(uint8_t* dataArray, int rectHeight, int rectLength, int startX, int startY, Color8u c, bool fill);
+
+	/**
+	 *Add a circle to the surface (A.2)
+	 *@dataArray array of pixels the rectangle is to be added to
+	 *@radius of the circle to be drawn
+	 *@xCenter x value of the center of the circle
+	 *@yCenter y value of the center of the circle
+	 *@c color to draw the circle pixels in
+	 *@fill (true) fill the circle, (false)only draw perimeter
+	 */
 	void addCircle(uint8_t* dataArray, int radius, int xCenter, int yCenter, Color8u c, bool fill);
-	void addLine(int firstX, int firstY, int secondX, int secondY, Color8u c); //used http://www.codekeep.net/snippets/e39b2d9e-0843-4405-8e31-44e212ca1c45.aspx as a template
-	void setPixel(int x, int y, Color8u c); //Required by addLine
+	
+	/**
+	 *Adds a line between two given points (A.3)
+	 *used http://www.codekeep.net/snippets/e39b2d9e-0843-4405-8e31-44e212ca1c45.aspx as a template
+	 *@firstX first point x coordinate
+	 *@firstY first point y coordinate
+	 *@secondX second point x coordinate
+	 *@secondY second point y coordinate
+	 *@c color of the line to be drawn
+	 */
+	void addLine(int firstX, int firstY, int secondX, int secondY, Color8u c); 
+	
+	/**
+	 *Sets a specific pixel to a given color
+	 *addLine and addTriangle are inherantly dependant on setPixel
+	 *@x coordinate of pixel
+	 *@y coordinate of pixel
+	 *@c color to make pixel
+	 */
+	void setPixel(int x, int y, Color8u c);
+
+	/**
+	 *Adds a triangle to the surface by passing in three points (A.7)
+	 *@firstX, firstY :: x,y coordinates of point 1
+	 *@secondX, secondY :: x,y coordinate of point 2
+	 *@thirdX, thirdY :: x,y coordinates of point 3
+	 */
 	void addTriangle(int firstX, int firstY, int secondX, int secondY, int thirdX, int thirdY, Color8u c);
-	void blur(uint8_t* image_to_blur);
+
+	/**
+	 *Adds a blur to the sky of the image only (B.1)
+	 *Intent is to eventually have a mouse event to draw clouds and blur the sky to make them look more "realistic"
+	 *@surfaceToBlur surface to be modified by the blur function
+	 */
+	void blur(uint8_t* surfaceToBlur);
 };
 
 void CatPictureApp::prepareSettings(Settings* settings){
@@ -40,31 +102,19 @@ void CatPictureApp::prepareSettings(Settings* settings){
 	(*settings).setResizable(false);
 }
 
-void CatPictureApp::setDefaultColor(){
-	uint8_t* dataArray = (*mySurface).getData();
-	Color8u c = Color8u(255,255,255);
 
-	for(int i = 0; i < AppWidth; i++){
-		for(int j = 0; j < AppHeight; j++){
-			int offset = 3*(i + j*TextureSize);
-			dataArray[offset] = c.r;
-			dataArray[offset+1] = c.b;
-			dataArray[offset+2] = c.g;
-		}
-	}	
-}
-
-void CatPictureApp::addRectangle(uint8_t* dataArray, int rectHeight, int rectLength, int centerX, int centerY, Color8u c, bool fill){
-	//A.1
-
+void CatPictureApp::addRectangle(uint8_t* dataArray, int rectHeight, int rectLength, int startX, int startY, Color8u c, bool fill){
+	
+	//static variables are required to preserve the original dimensions as we decrement in the for loop
 	int staticHeight = rectHeight;
 	int staticLength = rectLength;
-	for(int i = centerY; i <= centerY + staticHeight; i++){
+
+	for(int i = startY; i <= startY + staticHeight; i++){
 		if(rectHeight >= 0){
-			for(int j = centerX; j <= centerX + staticLength; j++){
+			for(int j = startX; j <= startX + staticLength; j++){
 				if(rectLength >= 0){
 					if(fill){
-						if(i >= centerY || i <= centerY + staticHeight || j >= centerX || j <= centerX + staticLength){
+						if(i >= startY || i <= startY + staticHeight || j >= startX || j <= startX + staticLength){
 							int offset = 3*(j + i*TextureSize);
 							dataArray[offset] = c.r;
 							dataArray[offset+1] = c.b;
@@ -72,7 +122,7 @@ void CatPictureApp::addRectangle(uint8_t* dataArray, int rectHeight, int rectLen
 							rectLength--;
 						}
 					} else {
-						if(i == centerY || i == centerY + staticHeight || j == centerX || j == centerX + staticLength){
+						if(i == startY || i == startY + staticHeight || j == startX || j == startX + staticLength){
 							int offset = 3*(j + i*TextureSize);
 							dataArray[offset] = c.r;
 							dataArray[offset+1] = c.b;
@@ -90,8 +140,8 @@ void CatPictureApp::addRectangle(uint8_t* dataArray, int rectHeight, int rectLen
 
 
 void CatPictureApp::addCircle(uint8_t* dataArray, int radius, int xCenter, int yCenter, Color8u c, bool fill){
-	//A.2: Draws a circle at a given x,y coordinate with a given radius.
-	if(fill){
+	//Draws a circle at a given x,y coordinate with a given radius.
+	if(fill){ //Will fill the circle
 		for(int i = yCenter-radius; i<=yCenter+radius; i++){
 			for(int j = xCenter-radius; j <= xCenter+radius; j++){
 				int distance = (int)sqrt((double)((j - xCenter)*(j-xCenter) + (i - yCenter)*(i - yCenter)));
@@ -104,7 +154,7 @@ void CatPictureApp::addCircle(uint8_t* dataArray, int radius, int xCenter, int y
 				}
 			}
 		}
-	} else {
+	} else { //Will draw only the circumference of the circle
 		for(int i = yCenter-radius; i<=yCenter+radius; i++){
 			for(int j = xCenter-radius; j <= xCenter+radius; j++){
 				int distance = (int)sqrt((double)((j - xCenter)*(j-xCenter) + (i - yCenter)*(i - yCenter)));
@@ -122,6 +172,9 @@ void CatPictureApp::addCircle(uint8_t* dataArray, int radius, int xCenter, int y
 }
 
 void CatPictureApp::addLine(int firstX, int firstY, int secondX, int secondY, Color8u c){
+	//I changed many of the variables to make them more consistant with the naming conventions
+	//I used in this code
+	
 	int F, x, y;
 
     if (firstX > secondX) {  
@@ -241,6 +294,8 @@ void CatPictureApp::addLine(int firstX, int firstY, int secondX, int secondY, Co
 
 void CatPictureApp::setPixel(int x, int y, Color8u c)
 {
+	//Sets a single pixel on the screen to a specified color
+	//setPixel is a dependancy for addLine and addTriangle
 	uint8_t* dataArray = (*mySurface).getData();
 
 	for(int i = 0; i < AppHeight; i++){
@@ -258,22 +313,20 @@ void CatPictureApp::setPixel(int x, int y, Color8u c)
 }
 
 void CatPictureApp::addTriangle(int firstX, int firstY, int secondX, int secondY, int thirdX, int thirdY, Color8u c){
+	//Since a triangle is simply 3 lines drawn over three points we can call addLine for three given points
+	//to achieve a triangle on the surface
 	addLine(firstX, firstY, secondX, secondY, c);
 	addLine(firstX, firstY, thirdX, thirdY, c);
 	addLine(secondX, secondY, thirdX, thirdY, c);
 }
 
-void CatPictureApp::blur(uint8_t* image_to_blur){
-	//Convolution filters tend to overwrite the data that you need, so
-	// we keep a temporary copy of the image_to_blur. There are certainly
-	// more efficient ways to deal with this problem, but this is simple to
-	// understand. 
-	static uint8_t work_buffer[3*TextureSize*TextureSize];
-	//This memcpy is not much of a performance hit.
-	memcpy(work_buffer,image_to_blur,3*TextureSize*TextureSize);
+void CatPictureApp::blur(uint8_t* surfaceToBlur){
+	static uint8_t surfaceBuffer[3*TextureSize*TextureSize];
 	
-	//These are used in right shifts.
-	//Both of these kernels actually darken as well as blur.
+	//Makes a copy of the surface so we don't overwrite the data we need
+	memcpy(surfaceBuffer,surfaceToBlur,3*TextureSize*TextureSize);
+	
+	//Generic kernel to blur all the pixels
 	uint8_t blurKernel[9] = 
 	   {4,3,4,
 		4,2,4,
@@ -286,8 +339,7 @@ void CatPictureApp::blur(uint8_t* image_to_blur){
 	int k;
 	int y,x,ky,kx;
 	
-	//Visit every pixel in the image, except the ones on the edge.
-	//TODO Special purpose logic to handle the edge cases
+	//iterates through entire surface array and alters all the pixels
 	for( y=1;y<300-1;y++){
 		for( x=1;x<AppWidth-1;x++){
 			offset = 3*(x + y*AppWidth);
@@ -298,15 +350,15 @@ void CatPictureApp::blur(uint8_t* image_to_blur){
 				for( kx=-1;kx<=1;kx++){
 					offset = 3*(x + kx + (y+ky)*TextureSize);
 					k = blurKernel[kx+1 + (ky+1)*3];
-					total_red   += (work_buffer[offset  ] >> k);
-					total_green += (work_buffer[offset+1] >> k);
-					total_blue  += (work_buffer[offset+2] >> k);
+					total_red   += (surfaceBuffer[offset  ] >> k);
+					total_green += (surfaceBuffer[offset+1] >> k);
+					total_blue  += (surfaceBuffer[offset+2] >> k);
 				}
 			}
 			offset = 3*(x + y*TextureSize);
-			image_to_blur[offset]   = total_red;
-			image_to_blur[offset+1] = total_green;
-			image_to_blur[offset+2] = total_blue;
+			surfaceToBlur[offset]   = total_red;
+			surfaceToBlur[offset+1] = total_green;
+			surfaceToBlur[offset+2] = total_blue;
 		}
 	}
 }
@@ -317,9 +369,7 @@ void CatPictureApp::setup() {
 }
 
 void CatPictureApp::mouseDown( MouseEvent event ) {
-	
-	uint8_t* dataArray = (*mySurface).getData();
-	addCircle(dataArray,20, event.getX(), event.getY(), Color8u(255,255,255), true);
+
 }
 
 void CatPictureApp::update()
@@ -331,7 +381,7 @@ void CatPictureApp::update()
 	addRectangle(dataArray, 200, 799, 0, 400, Color8u(37, 52, 167), true);
 	//Wheel1
 	addCircle(dataArray, 20, 200, 500, Color8u(155,78,0), false);
-	if(frameNumber%10 < 2){
+	if(frameNumber%10 < 2){ //rudimentary wheel animation
 		addLine(180, 500, 220, 500, Color8u(155,78,0));
 		addLine(200, 520, 200, 480, Color8u(155,78,0));
 	} else {
@@ -340,7 +390,7 @@ void CatPictureApp::update()
 	}
 	//Wheel2
 	addCircle(dataArray, 20, 100, 500, Color8u(155,78,0), false);
-	if(frameNumber%10 < 2){
+	if(frameNumber%10 < 2){ //rudimentary wheel animation
 		addLine(80, 500, 120, 500, Color8u(155,78,0));
 		addLine(100, 520, 100, 480, Color8u(155,78,0));
 	} else {
@@ -369,9 +419,10 @@ void CatPictureApp::update()
 	addLine(540, 380, 540, 420, Color8u(0,0,0));
 	//roof
 	addTriangle(480,360,600,320,720,360, Color8u(0,0,0));
-
+	
 	blur(dataArray);
 
+	//write image to a file
 	if(frameNumber == 0){
 		writeImage("brammejd.png",*mySurface);
 	}
