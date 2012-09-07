@@ -34,6 +34,12 @@ class CatPictureApp : public AppBasic {
 	static const int AppHeight = 600;
 	//full texture size that is allocated to memory must be a square and a power of 2
 	static const int TextureSize = 1024;
+	int time;
+
+	//(comment) variables for the wheel animation
+
+	double s1x1,s1y1,s1x2,s1y2,s2x1,s2y1,s2x2,s2y2;
+	double deg;
 
 	//track frames shown for wheel animation
 	int frameNumber;
@@ -114,13 +120,17 @@ void CatPictureApp::addRectangle(uint8_t* dataArray, int rectHeight, int rectLen
 			for(int j = startX; j <= startX + staticLength; j++){
 				if(rectLength >= 0){
 					if(fill){
-						if(i >= startY || i <= startY + staticHeight || j >= startX || j <= startX + staticLength){
+
+						//(comment) I dont think this if statment is need, the way the loops are structured i will always satisfy
+						//one of the arguments. Also the loops go through every pixel in the area of the rectangel, so no if statment is needed at all.
+
+						//if(i >= startY || i <= startY + staticHeight || j >= startX || j <= startX + staticLength){
 							int offset = 3*(j + i*TextureSize);
 							dataArray[offset] = c.r;
 							dataArray[offset+1] = c.b;
 							dataArray[offset+2] = c.g;
 							rectLength--;
-						}
+						//}
 					} else {
 						if(i == startY || i == startY + staticHeight || j == startX || j == startX + staticLength){
 							int offset = 3*(j + i*TextureSize);
@@ -159,7 +169,14 @@ void CatPictureApp::addCircle(uint8_t* dataArray, int radius, int xCenter, int y
 			for(int j = xCenter-radius; j <= xCenter+radius; j++){
 				int distance = (int)sqrt((double)((j - xCenter)*(j-xCenter) + (i - yCenter)*(i - yCenter)));
 				if(distance <= radius){
-					if(distance%radius < 1 && distance > 9){
+
+					//(comment) why does the radius have to be greater than 9 for only to circumference of the circle to be drawn?
+					// and maybe set it so that the outline of the circle is a little wider to make it look nicer
+
+					//if(distance%radius - 3 < 3 && distance > 9){
+					//Im not sure why you made distance have to be larger than 9, and you could make the two a thickness variable
+					//so the user could input how thick they want the circle to be
+					if(distance%radius >= radius - 2){
 						int offset = 3*(j + i*TextureSize);
 						dataArray[offset] = c.r;
 						dataArray[offset+1] = c.g;
@@ -298,7 +315,7 @@ void CatPictureApp::setPixel(int x, int y, Color8u c)
 	//setPixel is a dependancy for addLine and addTriangle
 	uint8_t* dataArray = (*mySurface).getData();
 
-	for(int i = 0; i < AppHeight; i++){
+	/*for(int i = 0; i < AppHeight; i++){
 		if(i == y){
 			for(int j = 0; j < AppWidth; j++){
 				if(j == x){
@@ -309,7 +326,14 @@ void CatPictureApp::setPixel(int x, int y, Color8u c)
 				}
 			}
 		}
-	}
+	}*/
+
+	//(comment) you dont have to use the loops, you can just set the pixel directly
+	//also you never use this method in anything other than your addLine, you could use this anywhere you set the pixel color seperately
+
+	dataArray[y * TextureSize * 3 + 3 * x] = c.r;
+	dataArray[y * TextureSize * 3 + 3 * x + 1] = c.g;
+	dataArray[y * TextureSize * 3 + 3 * x + 2] = c.b;
 }
 
 void CatPictureApp::addTriangle(int firstX, int firstY, int secondX, int secondY, int thirdX, int thirdY, Color8u c){
@@ -366,6 +390,16 @@ void CatPictureApp::blur(uint8_t* surfaceToBlur){
 void CatPictureApp::setup() {
 	mySurface = new Surface(TextureSize, TextureSize, false);
 	frameNumber = 0;
+	s1x1 = 0;
+	s1y1 = 0;
+	s1x2 = 0;
+	s1y2 = 0;
+	s2x1 = 0;
+	s2y1 = 0;
+	s2x2 = 0;
+	s2y2 = 0;
+	deg = 0;
+	time = 0;
 }
 
 void CatPictureApp::mouseDown( MouseEvent event ) {
@@ -375,28 +409,62 @@ void CatPictureApp::mouseDown( MouseEvent event ) {
 void CatPictureApp::update()
 {
 	uint8_t* dataArray = (*mySurface).getData();
+
+	//(comment) set the x and y values for wheel spokes using sin and cos
+	s1x1 = cos(deg*3.14/180);
+	s1y1 = sin(deg*3.14/180);
+	s1x2 = -1 * s1x1;
+	s1y2 = -1 * s1y1;
+
+	s2x1 = cos((deg-90)*3.14/180);
+	s2y1 = sin((deg-90)*3.14/180);
+	s2x2 = -1 * s2x1;
+	s2y2 = -1 * s2y1;
+
+	//(comment) add 10 to degrees every update to make the spokes turn
+	if(deg < 360){
+		deg = deg + 10;
+	}
+	else{
+		deg = 0;
+	}
+
 	//sky
 	addRectangle(dataArray, 400, 799, 0, 0, Color8u(23,225,236), true);
 	//grass
 	addRectangle(dataArray, 200, 799, 0, 400, Color8u(37, 52, 167), true);
 	//Wheel1
 	addCircle(dataArray, 20, 200, 500, Color8u(155,78,0), false);
-	if(frameNumber%10 < 2){ //rudimentary wheel animation
-		addLine(180, 500, 220, 500, Color8u(155,78,0));
-		addLine(200, 520, 200, 480, Color8u(155,78,0));
-	} else {
-		addLine(188, 516, 212, 484, Color8u(155,78,0));
-		addLine(212, 516, 188, 484, Color8u(155,78,0));
-	}
+
+	//(comment) use the points for the spokes to creat the spokes in the correct places
+	addLine(s1x1*20+200, s1y1*20+500, s1x2*20+200, s1y2*20+500, Color8u(155,78,0));
+	addLine(s2x1*20+200, s2y1*20+500, s2x2*20+200, s2y2*20+500, Color8u(155,78,0));
+
+	//if(frameNumber%10 < 2){ //rudimentary wheel animation
+		//addLine(180, 500, 220, 500, Color8u(155,78,0));
+		//addLine(200, 520, 200, 480, Color8u(155,78,0));
+	//} else {
+		//addLine(188, 516, 212, 484, Color8u(155,78,0));
+		//addLine(212, 516, 188, 484, Color8u(155,78,0));
+	//}
+
 	//Wheel2
 	addCircle(dataArray, 20, 100, 500, Color8u(155,78,0), false);
-	if(frameNumber%10 < 2){ //rudimentary wheel animation
-		addLine(80, 500, 120, 500, Color8u(155,78,0));
-		addLine(100, 520, 100, 480, Color8u(155,78,0));
-	} else {
-		addLine(88, 516, 112, 484, Color8u(155,78,0));
-		addLine(112, 516, 88, 484, Color8u(155,78,0));
-	}
+
+	//(comment) use the points for the spokes to creat the spokes in the correct places
+	addLine(s1x1*20+100, s1y1*20+500, s1x2*20+100, s1y2*20+500, Color8u(155,78,0));
+	addLine(s2x1*20+100, s2y1*20+500, s2x2*20+100, s2y2*20+500, Color8u(155,78,0));
+	
+	
+	//if(frameNumber%10 < 2){ //rudimentary wheel animation
+		//addLine(80, 500, 120, 500, Color8u(155,78,0));
+		//addLine(100, 520, 100, 480, Color8u(155,78,0));
+	//} else {
+		//addLine(88, 516, 112, 484, Color8u(155,78,0));
+		//addLine(112, 516, 88, 484, Color8u(155,78,0));
+	//}
+
+
 	//base of wagon
 	addRectangle(dataArray, 20, 140, 80, 450, Color8u(155,78,0), true);
 	//wagon cover
@@ -425,6 +493,9 @@ void CatPictureApp::update()
 	addCircle(dataArray, 25, 500, 100, Color8u(255,255,255), true);
 	addCircle(dataArray, 40, 550, 75, Color8u(255,255,255), true);
 
+	//(comment) added rectangle and circle to see what they look like
+	addRectangle(dataArray, 100, 100, 100, 100, Color8u(0,225,0), false);
+	addCircle(dataArray, 50, 350, 125, Color8u(0,225,0), false);
 
 	blur(dataArray);
 
